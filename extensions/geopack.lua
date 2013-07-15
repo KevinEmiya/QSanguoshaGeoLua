@@ -58,24 +58,18 @@ Pinwei = sgs.CreateViewAsSkill{
 --绝杀
 JueshaCard = sgs.CreateSkillCard{
 	name = "JueshaCard",
-	target_fixed = false,
+	target_fixed = true,
 	will_throw = true, 
-	on_effect=function(self,effect)
-		local from=effect.from
-		local to  =effect.to
-		local room=from:getRoom()
-		room:killPlayer(to)
+	on_effect = function(self, effect)
 	end
 }
-Juesha = sgs.CreateViewAsSkill{
+
+JueshaVS = sgs.CreateViewAsSkill{
 	name = "Juesha",
 	n = 1,
 	view_filter = function(self, selected, to_select)
 		local card = to_select
-		if #selected == 0 then
-			return (card:isKindOf("Weapon") and card:isBlack()) or card:isKindOf("Analeptic")
-		end
-		return false
+		return ((card:isKindOf("Weapon") and card:isBlack()) or card:isKindOf("Analeptic")) and (not sgs.Self:isJilei(to_select))
 	end,
 	view_as = function(self, cards)
 		if #cards == 1 then
@@ -84,14 +78,36 @@ Juesha = sgs.CreateViewAsSkill{
 			return juesha_card
 		end
 	end,
-	enabled_at_play = function(self, target)
+	enabled_at_play = function(self, player)
 		return false
-	end, 
+	end,
 	enabled_at_response = function(self, target, pattern)
-		return string.find(pattern, "peach")
+		return pattern == "@@Juesha"
 	end
 }
 
+Juesha = sgs.CreateTriggerSkill{
+	name = "Juesha",
+	frequency = sgs.Skill_NotFrequent, 
+	events = {sgs.Dying},
+	view_as_skill = JueshaVS, 
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local dying = data:toDying()
+		local _player = dying.who
+		local damage = dying.damage
+		if _player:getHp() < 1 then
+			if player:canDiscard(player, "he") then
+				if room:askForSkillInvoke(player, self:objectName(), data) then
+					 if room:askForUseCard(player, "@@Juesha", "@juesha-card", -1, sgs.Card_MethodNone) then
+						room:killPlayer(_player, damage)
+					 end
+				end
+			end
+		end
+		return false
+	end,
+}
 ---End of Skills of jisheng
 
 jisheng:addSkill(Pinwei)
@@ -105,8 +121,10 @@ sgs.LoadTranslationTable{
 	["Pinwei"] = "品位",
 	[":Pinwei"] = "你可以将红色的装备牌当作桃，黑色的武器牌当作酒使用",
 	["Juesha"] = "绝杀",
+	["juesha"] = "绝杀",
 	[":Juesha"] = "任意角色进入濒死状态时，你可以弃置一张酒令其立即死亡。",
 	["@juesha-card"] = "请弃置一张【酒】",
+	["~Juesha"] = "选择一张【酒】-确定",
 	["designer:jisheng"] = "洩矢の呼啦圈"
 }
 		
